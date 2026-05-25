@@ -27,9 +27,36 @@ $pluginVersion = plugin::byId('hyundaikia')->getInfo('version');
             }
             ?>
         </div>
-        <a class="btn btn-default btn-sm eqLogicAction" data-action="add" style="margin-top:5px;">
+        <a class="btn btn-default btn-sm" id="bt_addHyundaiKia" style="margin-top:5px;">
             <i class="fas fa-plus-circle"></i> {{Ajouter un véhicule manuellement}}
         </a>
+        
+        <script>
+        $('#bt_addHyundaiKia').on('click', function () {
+            jeeDialog.prompt("Nom du véhicule ?", function(result) {
+                if (result) {
+                    jeedom.eqLogic.save({
+                        type: 'hyundaikia',
+                        eqLogics: [{
+                            name: result,
+                            isEnable: 1,
+                            isVisible: 1
+                        }],
+                        error: function (error) {
+                            $('#div_alert').showAlert({
+                                message: error.message,
+                                level: 'danger'
+                            });
+                        },
+                        success: function (data) {
+                            window.location.href =
+                                'index.php?v=d&p=hyundaikia&id=' + data.id;
+                        }
+                    });
+                }
+            });
+        });
+        </script>
     </div>
 
     <!-- Panneau droit : configuration d'un équipement -->
