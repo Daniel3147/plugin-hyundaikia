@@ -68,7 +68,11 @@ $pluginVersion = plugin::byId('hyundaikia')->getInfo('version');
                         <fieldset>
                             <legend>{{Informations générales}}</legend>
                             <?php
-                            echo eqLogic::getHTMLInput(array('eqLogic_id' => init('id')));
+                            $eqLogic = hyundaikia::byId(init('id'));
+
+                            if (is_object($eqLogic)) {
+                                include_file('desktop', 'hyundaikia', 'php', 'hyundaikia');
+                            }
                             ?>
                         </fieldset>
                     </form>
