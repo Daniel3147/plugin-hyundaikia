@@ -1,15 +1,15 @@
 {
-    "id": "hyundaikia",
-    "name": "Hyundai / Kia Connect",
-    "description": "Plugin Jeedom pour piloter et surveiller les véhicules Hyundai (Bluelink) et Kia (UVO) via l'API Connect officielle.",
-    "licence": "GPL v3",
-    "author": "Votre nom",
-    "require": "4.4.0",
-    "category": "automatisation",
-    "changelog": "",
-    "documentation": "https://github.com/Hyundai-Kia-Connect/hyundai_kia_connect_api",
-    "hasDependency": true,
-    "hasOwnDeamon": true,
-    "maxDependancyInstallTime": 10,
-    "issue": ""
+    "id"                        : "hyundaikia",
+    "name"                      : "Hyundai / Kia Connect",
+    "description"               : "Plugin pour piloter et surveiller les véhicules Hyundai (Bluelink) et Kia (UVO/Connect) via l'API officielle.",
+    "licence"                   : "GPL v3",
+    "author"                    : "",
+    "require"                   : "4.4.0",
+    "category"                  : "automatisation",
+    "changelog"                 : "",
+    "documentation"             : "",
+    "hasDependency"             : true,
+    "hasOwnDeamon"              : true,
+    "maxDependancyInstallTime"  : 10,
+    "issue"                     : ""
 }

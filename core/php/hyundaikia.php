@@ -1,65 +1,68 @@
 <?php
-/* Point d'entrée HTTP appelé par le démon Python
- * pour remonter les données des véhicules vers Jeedom
+/**
+ * Callback HTTP appelé par le démon Python pour remonter
+ * les données des véhicules et les événements vers Jeedom.
  */
-
 try {
     require_once dirname(__FILE__) . '/../../../../core/php/core.inc.php';
     include_file('core', 'authentification', 'php');
 } catch (Exception $e) {
-    die('Erreur chargement core: ' . $e->getMessage());
+    die('Core load error: ' . $e->getMessage());
 }
 
-if (!isConnect('admin')) {
-    // Vérifie l'API key dans le header Authorization
-    $apiKey = '';
-    if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
-        $apiKey = $_SERVER['HTTP_AUTHORIZATION'];
-    } elseif (isset($_GET['apikey'])) {
-        $apiKey = $_GET['apikey'];
-    }
-    if ($apiKey !== jeedom::getApiKey('hyundaikia')) {
-        log::add('hyundaikia', 'error', 'Clé API invalide - accès refusé');
-        die('Access denied');
-    }
+// Vérification de la clé API
+$apiKey = '';
+foreach (['HTTP_AUTHORIZATION', 'HTTP_X_API_KEY'] as $h) {
+    if (!empty($_SERVER[$h])) { $apiKey = $_SERVER[$h]; break; }
+}
+if (empty($apiKey) && !empty($_GET['apikey'])) {
+    $apiKey = $_GET['apikey'];
 }
 
-$rawInput = file_get_contents('php://input');
-if (empty($rawInput)) {
-    die('No data');
+if ($apiKey !== jeedom::getApiKey('hyundaikia')) {
+    log::add('hyundaikia', 'warning', 'Clé API invalide – accès refusé');
+    http_response_code(403);
+    die(json_encode(['state' => 'error', 'result' => 'Forbidden']));
 }
 
-$data = json_decode($rawInput, true);
+// Lecture du body JSON
+$raw = file_get_contents('php://input');
+if (empty($raw)) {
+    http_response_code(400);
+    die(json_encode(['state' => 'error', 'result' => 'Empty body']));
+}
+
+$data = json_decode($raw, true);
 if (!is_array($data)) {
-    log::add('hyundaikia', 'error', 'Données invalides reçues du démon: ' . $rawInput);
-    die('Invalid JSON');
+    log::add('hyundaikia', 'error', 'JSON invalide : ' . $raw);
+    http_response_code(400);
+    die(json_encode(['state' => 'error', 'result' => 'Invalid JSON']));
 }
 
-log::add('hyundaikia', 'debug', 'Données reçues du démon: ' . json_encode($data));
+log::add('hyundaikia', 'debug', 'Callback reçu: action=' . ($data['action'] ?? ''));
 
-$action = isset($data['action']) ? $data['action'] : '';
+header('Content-Type: application/json');
 
-switch ($action) {
+switch ($data['action'] ?? '') {
+
     case 'vehicle_update':
-        // Mise à jour des données d'un véhicule
-        if (isset($data['vehicles']) && is_array($data['vehicles'])) {
+        if (!empty($data['vehicles']) && is_array($data['vehicles'])) {
             foreach ($data['vehicles'] as $vehicleData) {
                 hyundaikia::updateVehicle($vehicleData);
             }
         }
-        echo json_encode(array('status' => 'ok'));
+        echo json_encode(['state' => 'ok']);
         break;
 
     case 'log':
-        // Log envoyé par le démon
-        $level   = isset($data['level']) ? $data['level'] : 'debug';
-        $message = isset($data['message']) ? $data['message'] : '';
+        $level   = $data['level']   ?? 'debug';
+        $message = $data['message'] ?? '';
         log::add('hyundaikia', $level, '[daemon] ' . $message);
-        echo json_encode(array('status' => 'ok'));
+        echo json_encode(['state' => 'ok']);
         break;
 
     default:
-        log::add('hyundaikia', 'warning', 'Action inconnue reçue du démon: ' . $action);
-        echo json_encode(array('status' => 'unknown_action'));
+        log::add('hyundaikia', 'warning', 'Action inconnue: ' . ($data['action'] ?? ''));
+        echo json_encode(['state' => 'error', 'result' => 'Unknown action']);
         break;
 }

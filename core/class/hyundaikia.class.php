@@ -1,6 +1,5 @@
 <?php
 /* This file is part of Jeedom.
- *
  * Jeedom is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -9,145 +8,180 @@
 
 class hyundaikia extends eqLogic {
 
-    // ============================
-    // Méthodes statiques du plugin
-    // ============================
+    // =========================================================
+    //  Démon
+    // =========================================================
 
-    public static function getConfigurationOptions() {
-        return array();
-    }
-
-    /**
-     * Vérifie l'état du démon
-     */
     public static function deamon_info() {
-        $return = array();
-        $return['log']     = 'hyundaikia';
-        $return['state']   = 'nok';
-        $return['launchable'] = 'ok';
+        $return = [
+            'log'        => 'hyundaikia',
+            'state'      => 'nok',
+            'launchable' => 'ok',
+        ];
 
         $pid_file = jeedom::getTmpFolder('hyundaikia') . '/daemon.pid';
         if (file_exists($pid_file)) {
-            $pid = trim(file_get_contents($pid_file));
-            if (!empty($pid) && posix_getsid(intval($pid)) !== false) {
+            $pid = intval(trim(file_get_contents($pid_file)));
+            if ($pid > 0 && posix_getsid($pid) !== false) {
                 $return['state'] = 'ok';
             } else {
                 shell_exec(system::getCmdSudo() . ' rm -f ' . $pid_file . ' 2>&1 &');
             }
         }
 
-        // Vérifie que la configuration est complète
-        if (config::byKey('username', 'hyundaikia') == ''
-            || config::byKey('password', 'hyundaikia') == '') {
-            $return['launchable'] = 'nok';
-            $return['launchable_message'] = __('Veuillez configurer vos identifiants Hyundai/Kia Connect dans la configuration du plugin.', __FILE__);
+        if (config::byKey('username', 'hyundaikia', '') === ''
+            || config::byKey('password', 'hyundaikia', '') === '') {
+            $return['launchable']         = 'nok';
+            $return['launchable_message'] = __('Identifiants Hyundai/Kia manquants dans la configuration du plugin.', __FILE__);
         }
+
         return $return;
     }
 
-    /**
-     * Démarre le démon Python
-     */
     public static function deamon_start() {
         self::deamon_stop();
-        $deamon_info = self::deamon_info();
-        if ($deamon_info['launchable'] != 'ok') {
-            throw new Exception(__('Veuillez vérifier la configuration du plugin', __FILE__) . ' : ' . $deamon_info['launchable_message']);
+
+        $info = self::deamon_info();
+        if ($info['launchable'] !== 'ok') {
+            throw new Exception(__('Vérifiez la configuration : ', __FILE__) . $info['launchable_message']);
         }
 
-        $plugin       = plugin::byId('hyundaikia');
-        $path_plugin  = dirname(__FILE__) . '/../../';
-        $path_log     = log::getPathToLog('hyundaikia');
-        $path_pid     = jeedom::getTmpFolder('hyundaikia') . '/daemon.pid';
+        $tmpDir   = jeedom::getTmpFolder('hyundaikia');
+        $pidFile  = $tmpDir . '/daemon.pid';
+        $logFile  = log::getPathToLog('hyundaikia');
+        $daemonPy = dirname(__FILE__) . '/../../resources/daemon.py';
 
-        $cmd  = JEEDOM_ROOT . '/core/php/jeeHelper.php daemon start ';
-        $cmd .= __CLASS__;
-        $cmd .= ' socketPort ' . config::byKey('socketport', 'hyundaikia', '55987');
-        $cmd .= ' socketHost 127.0.0.1';
-        $cmd .= ' apiKey '    . jeedom::getApiKey('hyundaikia');
-        $cmd .= ' callbackUrl ' . network::getNetworkAccess('internal') . '/plugins/hyundaikia/core/php/hyundaikia.php';
-        $cmd .= ' cycle '     . config::byKey('cycle', 'hyundaikia', '30');
-        $cmd .= ' loglevel '  . log::convertLogLevel(log::getLogLevel('hyundaikia'));
-        $cmd .= ' pid '       . $path_pid;
-        $cmd .= ' region '    . config::byKey('region', 'hyundaikia', '1');
-        $cmd .= ' brand '     . config::byKey('brand', 'hyundaikia', '1');
-        $cmd .= ' username "' . config::byKey('username', 'hyundaikia') . '"';
-        $cmd .= ' password "' . config::byKey('password', 'hyundaikia') . '"';
-        $cmd .= ' pin "'      . config::byKey('pin', 'hyundaikia', '') . '"';
+        $params  = ' --socketport '   . config::byKey('socketport',  'hyundaikia', '55987');
+        $params .= ' --sockethost 127.0.0.1';
+        $params .= ' --apikey '       . jeedom::getApiKey('hyundaikia');
+        $params .= ' --callback "'    . network::getNetworkAccess('internal') . '/plugins/hyundaikia/core/php/hyundaikia.php"';
+        $params .= ' --cycle '        . config::byKey('cycle',       'hyundaikia', '30');
+        $params .= ' --loglevel '     . log::convertLogLevel(log::getLogLevel('hyundaikia'));
+        $params .= ' --pid "'         . $pidFile . '"';
+        $params .= ' --region '       . config::byKey('region',      'hyundaikia', '1');
+        $params .= ' --brand '        . config::byKey('brand',       'hyundaikia', '1');
+        $params .= ' --username "'    . config::byKey('username',    'hyundaikia') . '"';
+        $params .= ' --password "'    . config::byKey('password',    'hyundaikia') . '"';
+        $params .= ' --pin "'         . config::byKey('pin',         'hyundaikia', '') . '"';
 
-        log::add('hyundaikia', 'info', 'Lancement du démon');
-        $result = exec($cmd . ' >> ' . $path_log . ' 2>&1 &');
+        $cmd = 'python3 ' . $daemonPy . $params . ' >> ' . $logFile . ' 2>&1 &';
 
-        $i = 0;
-        while ($i < 20) {
+        log::add('hyundaikia', 'info', 'Lancement du démon : ' . $cmd);
+        exec($cmd);
+
+        // Attente démarrage (max 20s)
+        for ($i = 0; $i < 20; $i++) {
             sleep(1);
-            $deamon_info = self::deamon_info();
-            if ($deamon_info['state'] == 'ok') {
+            if (self::deamon_info()['state'] === 'ok') {
+                return true;
+            }
+        }
+        log::add('hyundaikia', 'error', 'Impossible de lancer le démon (timeout)');
+        return false;
+    }
+
+    public static function deamon_stop() {
+        $pidFile = jeedom::getTmpFolder('hyundaikia') . '/daemon.pid';
+        if (file_exists($pidFile)) {
+            $pid = intval(trim(file_get_contents($pidFile)));
+            if ($pid > 0) {
+                shell_exec(system::getCmdSudo() . ' kill -15 ' . $pid . ' 2>&1');
+                sleep(1);
+            }
+            shell_exec(system::getCmdSudo() . ' rm -f ' . $pidFile . ' 2>&1 &');
+        }
+    }
+
+    // =========================================================
+    //  Dépendances
+    // =========================================================
+
+    public static function dependancy_info() {
+        $return = [
+            'log'           => 'hyundaikia_dep',
+            'progress_file' => jeedom::getTmpFolder('hyundaikia') . '/dep_progress',
+            'state'         => 'ok',
+        ];
+
+        foreach (['hyundai_kia_connect_api', 'jeedomdaemon'] as $pkg) {
+            $check = shell_exec('pip3 show ' . $pkg . ' 2>&1');
+            if (strpos($check, 'Name:') === false) {
+                $return['state'] = 'nok';
                 break;
             }
-            $i++;
-        }
-        if ($i >= 20) {
-            log::add('hyundaikia', 'error', 'Impossible de lancer le démon');
-            return false;
-        }
-        return true;
-    }
-
-    /**
-     * Arrête le démon Python
-     */
-    public static function deamon_stop() {
-        $pid_file = jeedom::getTmpFolder('hyundaikia') . '/daemon.pid';
-        if (file_exists($pid_file)) {
-            $pid = intval(trim(file_get_contents($pid_file)));
-            if ($pid > 0) {
-                shell_exec(system::getCmdSudo() . ' kill -15 ' . $pid . ' 2>&1 &');
-            }
-            sleep(1);
-            shell_exec(system::getCmdSudo() . ' rm -f ' . $pid_file . ' 2>&1 &');
-        }
-    }
-
-    /**
-     * Gestion des dépendances
-     */
-    public static function dependancy_info() {
-        $return = array();
-        $return['log']     = 'hyundaikia_dep';
-        $return['progress_file'] = jeedom::getTmpFolder('hyundaikia') . '/dep_progress';
-        $return['state']   = 'ok';
-
-        // Vérifie si les packages pip sont installés
-        $check = shell_exec('pip3 show hyundai_kia_connect_api 2>&1');
-        if (strpos($check, 'Name: hyundai_kia_connect_api') === false) {
-            $return['state'] = 'nok';
-        }
-        $check2 = shell_exec('pip3 show jeedomdaemon 2>&1');
-        if (strpos($check2, 'Name: jeedomdaemon') === false) {
-            $return['state'] = 'nok';
         }
         return $return;
     }
 
     public static function dependancy_install() {
         log::remove('hyundaikia_dep');
-        return array(
-            'script' => dirname(__FILE__) . '/../../plugin_info/install.php dep',
-            'log'    => log::getPathToLog('hyundaikia_dep')
-        );
+        $progressFile = jeedom::getTmpFolder('hyundaikia') . '/dep_progress';
+        $logFile      = log::getPathToLog('hyundaikia_dep');
+        $cmd  = 'sudo pip3 install --upgrade hyundai_kia_connect_api jeedomdaemon';
+        $cmd .= ' >> ' . $logFile . ' 2>&1 & echo $! > ' . $progressFile;
+        exec($cmd);
+        return ['script' => '', 'log' => $logFile];
+    }
+
+    // =========================================================
+    //  Import / découverte des véhicules
+    // =========================================================
+
+    /**
+     * Appelé par l'AJAX "scan" : interroge le démon (ou directement l'API)
+     * et retourne la liste des véhicules détectés sans encore les créer.
+     */
+    public static function scanVehicles() {
+        // On demande au démon de renvoyer la liste via le callback PHP
+        // En pratique on appelle directement l'API python en CLI pour
+        // un scan ponctuel sans démon.
+        $region   = config::byKey('region',   'hyundaikia', '1');
+        $brand    = config::byKey('brand',    'hyundaikia', '1');
+        $username = config::byKey('username', 'hyundaikia', '');
+        $password = config::byKey('password', 'hyundaikia', '');
+        $pin      = config::byKey('pin',      'hyundaikia', '');
+
+        if (empty($username) || empty($password)) {
+            throw new Exception(__('Identifiants non configurés', __FILE__));
+        }
+
+        $scanScript = dirname(__FILE__) . '/../../resources/scan_vehicles.py';
+        $args  = ' --region '   . intval($region);
+        $args .= ' --brand '    . intval($brand);
+        $args .= ' --username ' . escapeshellarg($username);
+        $args .= ' --password ' . escapeshellarg($password);
+        $args .= ' --pin '      . escapeshellarg($pin);
+
+        $raw = shell_exec('python3 ' . $scanScript . $args . ' 2>&1');
+        log::add('hyundaikia', 'debug', 'scan_vehicles output: ' . $raw);
+
+        // Le script retourne du JSON sur stdout
+        $lines = explode("\n", trim($raw));
+        $json  = '';
+        foreach (array_reverse($lines) as $line) {
+            $line = trim($line);
+            if ($line !== '' && $line[0] === '[') {
+                $json = $line;
+                break;
+            }
+        }
+
+        if (empty($json)) {
+            throw new Exception(__('Aucune donnée retournée par le script de scan. Vérifiez les identifiants et les logs.', __FILE__));
+        }
+
+        $vehicles = json_decode($json, true);
+        if (!is_array($vehicles)) {
+            throw new Exception(__('Réponse invalide du script de scan : ', __FILE__) . $json);
+        }
+
+        return $vehicles;
     }
 
     /**
-     * Crée ou met à jour les équipements lors d'un message du démon
+     * Crée ou met à jour un équipement à partir d'un VIN + nom.
      */
-    public static function updateVehicle($data) {
-        if (!isset($data['vin'])) {
-            return;
-        }
-        $vin = $data['vin'];
-
-        // Cherche ou crée l'équipement
+    public static function importVehicle($vin, $name, $model, $objectId = null) {
         $eqLogic = eqLogic::byLogicalId($vin, 'hyundaikia');
         if (!is_object($eqLogic)) {
             $eqLogic = new hyundaikia();
@@ -155,17 +189,41 @@ class hyundaikia extends eqLogic {
             $eqLogic->setEqType_name('hyundaikia');
             $eqLogic->setIsEnable(1);
             $eqLogic->setIsVisible(1);
-            $name = isset($data['name']) ? $data['name'] : $vin;
-            $eqLogic->setName($name);
-            $eqLogic->setCategory('automatisation', 1);
-            $eqLogic->save();
-            log::add('hyundaikia', 'info', 'Nouvel équipement créé : ' . $name . ' (' . $vin . ')');
         }
 
-        // Définit et met à jour toutes les commandes info
-        $commands = self::getVehicleCommandsList();
-        foreach ($commands as $key => $def) {
-            if (!isset($data[$key])) continue;
+        $eqLogic->setName($name ?: $vin);
+        $eqLogic->setConfiguration('model', $model);
+        if ($objectId !== null && $objectId !== '') {
+            $eqLogic->setObject_id($objectId);
+        }
+        $eqLogic->save();
+
+        log::add('hyundaikia', 'info', 'Véhicule importé : ' . $name . ' (' . $vin . ')');
+        return $eqLogic->getId();
+    }
+
+    // =========================================================
+    //  Mise à jour des données (appelée par le callback PHP)
+    // =========================================================
+
+    public static function updateVehicle($data) {
+        if (empty($data['vin'])) return;
+
+        $vin     = $data['vin'];
+        $eqLogic = eqLogic::byLogicalId($vin, 'hyundaikia');
+        if (!is_object($eqLogic)) {
+            // Création automatique si inconnu
+            $eqLogic = new hyundaikia();
+            $eqLogic->setLogicalId($vin);
+            $eqLogic->setEqType_name('hyundaikia');
+            $eqLogic->setIsEnable(1);
+            $eqLogic->setIsVisible(1);
+            $eqLogic->setName(isset($data['name']) ? $data['name'] : $vin);
+            $eqLogic->save();
+        }
+
+        foreach (self::getVehicleCommandsList() as $key => $def) {
+            if (!array_key_exists($key, $data)) continue;
             $cmd = $eqLogic->getCmd(null, $key);
             if (!is_object($cmd)) {
                 $cmd = new hyundaikiaCmd();
@@ -174,82 +232,67 @@ class hyundaikia extends eqLogic {
                 $cmd->setName($def['name']);
                 $cmd->setType('info');
                 $cmd->setSubType($def['subtype']);
-                if (isset($def['unit']))   $cmd->setUnite($def['unit']);
-                if (isset($def['icon']))   $cmd->setDisplay('icon', $def['icon']);
+                if (!empty($def['unit']))        $cmd->setUnite($def['unit']);
+                if (!empty($def['genericType'])) $cmd->setGeneric_type($def['genericType']);
                 $cmd->save();
             }
             $cmd->event($data[$key]);
         }
 
-        log::add('hyundaikia', 'debug', 'Véhicule mis à jour : ' . $vin);
+        log::add('hyundaikia', 'debug', 'Données mises à jour : ' . $vin);
     }
 
-    /**
-     * Définition de toutes les commandes info disponibles
-     */
+    // =========================================================
+    //  Liste des commandes info disponibles
+    // =========================================================
+
     public static function getVehicleCommandsList() {
-        return array(
-            // Identité
-            'name'                      => array('name' => 'Nom',                     'subtype' => 'string'),
-            'model'                     => array('name' => 'Modèle',                  'subtype' => 'string'),
-            'registration_date'         => array('name' => 'Date immatriculation',    'subtype' => 'string'),
-            // Batterie / autonomie
-            'ev_battery_percentage'     => array('name' => 'Batterie (%)',             'subtype' => 'numeric', 'unit' => '%'),
-            'ev_battery_is_charging'    => array('name' => 'En charge',               'subtype' => 'binary'),
-            'ev_battery_is_plugged_in'  => array('name' => 'Branché',                 'subtype' => 'binary'),
-            'ev_driving_range'          => array('name' => 'Autonomie électrique (km)','subtype' => 'numeric', 'unit' => 'km'),
-            'fuel_driving_range'        => array('name' => 'Autonomie carburant (km)', 'subtype' => 'numeric', 'unit' => 'km'),
-            'fuel_level'                => array('name' => 'Niveau carburant (%)',     'subtype' => 'numeric', 'unit' => '%'),
-            // Portes / verrouillage
-            'is_locked'                 => array('name' => 'Verrouillé',              'subtype' => 'binary'),
-            'front_left_door_open'      => array('name' => 'Porte AV gauche',         'subtype' => 'binary'),
-            'front_right_door_open'     => array('name' => 'Porte AV droite',         'subtype' => 'binary'),
-            'back_left_door_open'       => array('name' => 'Porte AR gauche',         'subtype' => 'binary'),
-            'back_right_door_open'      => array('name' => 'Porte AR droite',         'subtype' => 'binary'),
-            'trunk_open'                => array('name' => 'Coffre ouvert',           'subtype' => 'binary'),
-            'hood_open'                 => array('name' => 'Capot ouvert',            'subtype' => 'binary'),
-            // Fenêtres
-            'front_left_window_open'    => array('name' => 'Fenêtre AV gauche',       'subtype' => 'binary'),
-            'front_right_window_open'   => array('name' => 'Fenêtre AV droite',       'subtype' => 'binary'),
-            'back_left_window_open'     => array('name' => 'Fenêtre AR gauche',       'subtype' => 'binary'),
-            'back_right_window_open'    => array('name' => 'Fenêtre AR droite',       'subtype' => 'binary'),
-            // Localisation
-            'latitude'                  => array('name' => 'Latitude',                'subtype' => 'numeric'),
-            'longitude'                 => array('name' => 'Longitude',               'subtype' => 'numeric'),
-            'location_name'             => array('name' => 'Lieu',                    'subtype' => 'string'),
-            // Climatisation
-            'air_temperature'           => array('name' => 'Température clim (°C)',   'subtype' => 'numeric', 'unit' => '°C'),
-            'air_control_is_on'         => array('name' => 'Climatisation active',    'subtype' => 'binary'),
-            // Odométrie
-            'odometer'                  => array('name' => 'Kilométrage',             'subtype' => 'numeric', 'unit' => 'km'),
-            // Pression des pneus
-            'tire_front_left_pressure'  => array('name' => 'Pression AV gauche',      'subtype' => 'numeric', 'unit' => 'bar'),
-            'tire_front_right_pressure' => array('name' => 'Pression AV droite',      'subtype' => 'numeric', 'unit' => 'bar'),
-            'tire_back_left_pressure'   => array('name' => 'Pression AR gauche',      'subtype' => 'numeric', 'unit' => 'bar'),
-            'tire_back_right_pressure'  => array('name' => 'Pression AR droite',      'subtype' => 'numeric', 'unit' => 'bar'),
-            // Divers
-            'last_updated_at'           => array('name' => 'Dernière mise à jour',    'subtype' => 'string'),
-        );
+        return [
+            'ev_battery_percentage'     => ['name' => __('Batterie (%)',              __FILE__), 'subtype' => 'numeric', 'unit' => '%',  'genericType' => 'BATTERY'],
+            'ev_battery_is_charging'    => ['name' => __('En charge',                 __FILE__), 'subtype' => 'binary',                  'genericType' => ''],
+            'ev_battery_is_plugged_in'  => ['name' => __('Branché',                   __FILE__), 'subtype' => 'binary'],
+            'ev_driving_range'          => ['name' => __('Autonomie électrique (km)', __FILE__), 'subtype' => 'numeric', 'unit' => 'km'],
+            'fuel_level'                => ['name' => __('Niveau carburant (%)',       __FILE__), 'subtype' => 'numeric', 'unit' => '%'],
+            'fuel_driving_range'        => ['name' => __('Autonomie carburant (km)',   __FILE__), 'subtype' => 'numeric', 'unit' => 'km'],
+            'is_locked'                 => ['name' => __('Verrouillé',                __FILE__), 'subtype' => 'binary',                  'genericType' => 'LOCK_STATE'],
+            'front_left_door_open'      => ['name' => __('Porte AV gauche',           __FILE__), 'subtype' => 'binary',                  'genericType' => 'OPENING'],
+            'front_right_door_open'     => ['name' => __('Porte AV droite',           __FILE__), 'subtype' => 'binary',                  'genericType' => 'OPENING'],
+            'back_left_door_open'       => ['name' => __('Porte AR gauche',           __FILE__), 'subtype' => 'binary',                  'genericType' => 'OPENING'],
+            'back_right_door_open'      => ['name' => __('Porte AR droite',           __FILE__), 'subtype' => 'binary',                  'genericType' => 'OPENING'],
+            'trunk_open'                => ['name' => __('Coffre',                    __FILE__), 'subtype' => 'binary',                  'genericType' => 'OPENING'],
+            'hood_open'                 => ['name' => __('Capot',                     __FILE__), 'subtype' => 'binary',                  'genericType' => 'OPENING'],
+            'front_left_window_open'    => ['name' => __('Fenêtre AV gauche',         __FILE__), 'subtype' => 'binary'],
+            'front_right_window_open'   => ['name' => __('Fenêtre AV droite',         __FILE__), 'subtype' => 'binary'],
+            'back_left_window_open'     => ['name' => __('Fenêtre AR gauche',         __FILE__), 'subtype' => 'binary'],
+            'back_right_window_open'    => ['name' => __('Fenêtre AR droite',         __FILE__), 'subtype' => 'binary'],
+            'latitude'                  => ['name' => __('Latitude',                  __FILE__), 'subtype' => 'numeric'],
+            'longitude'                 => ['name' => __('Longitude',                 __FILE__), 'subtype' => 'numeric'],
+            'location_name'             => ['name' => __('Lieu',                      __FILE__), 'subtype' => 'string'],
+            'air_temperature'           => ['name' => __('Temp. climatisation (°C)',  __FILE__), 'subtype' => 'numeric', 'unit' => '°C', 'genericType' => 'THERMOSTAT_TEMPERATURE'],
+            'air_control_is_on'         => ['name' => __('Climatisation active',      __FILE__), 'subtype' => 'binary'],
+            'odometer'                  => ['name' => __('Kilométrage',               __FILE__), 'subtype' => 'numeric', 'unit' => 'km'],
+            'tire_front_left_pressure'  => ['name' => __('Pression AV gauche',        __FILE__), 'subtype' => 'numeric', 'unit' => 'bar'],
+            'tire_front_right_pressure' => ['name' => __('Pression AV droite',        __FILE__), 'subtype' => 'numeric', 'unit' => 'bar'],
+            'tire_back_left_pressure'   => ['name' => __('Pression AR gauche',        __FILE__), 'subtype' => 'numeric', 'unit' => 'bar'],
+            'tire_back_right_pressure'  => ['name' => __('Pression AR droite',        __FILE__), 'subtype' => 'numeric', 'unit' => 'bar'],
+            'last_updated_at'           => ['name' => __('Dernière mise à jour',      __FILE__), 'subtype' => 'string'],
+        ];
     }
 
-    // ============================
-    // Méthodes d'instance
-    // ============================
+    // =========================================================
+    //  Cycle de vie de l'équipement
+    // =========================================================
 
-    /**
-     * Initialisation des commandes par défaut à la création d'un équipement
-     */
     public function postSave() {
-        // Ajoute les commandes actions si elles n'existent pas
-        $actions = array(
-            'refresh'        => array('name' => 'Rafraîchir',            'icon' => '<i class="fas fa-sync"></i>'),
-            'lock'           => array('name' => 'Verrouiller',           'icon' => '<i class="fas fa-lock"></i>'),
-            'unlock'         => array('name' => 'Déverrouiller',         'icon' => '<i class="fas fa-lock-open"></i>'),
-            'start_climate'  => array('name' => 'Démarrer climatisation','icon' => '<i class="fas fa-snowflake"></i>'),
-            'stop_climate'   => array('name' => 'Arrêter climatisation', 'icon' => '<i class="fas fa-stop"></i>'),
-            'start_charge'   => array('name' => 'Démarrer charge',       'icon' => '<i class="fas fa-charging-station"></i>'),
-            'stop_charge'    => array('name' => 'Arrêter charge',        'icon' => '<i class="fas fa-stop-circle"></i>'),
-        );
+        $actions = [
+            'refresh'       => ['name' => __('Rafraîchir',             __FILE__), 'icon' => 'fas fa-sync'],
+            'lock'          => ['name' => __('Verrouiller',            __FILE__), 'icon' => 'fas fa-lock'],
+            'unlock'        => ['name' => __('Déverrouiller',          __FILE__), 'icon' => 'fas fa-lock-open'],
+            'start_climate' => ['name' => __('Démarrer climatisation', __FILE__), 'icon' => 'fas fa-snowflake'],
+            'stop_climate'  => ['name' => __('Arrêter climatisation',  __FILE__), 'icon' => 'fas fa-stop'],
+            'start_charge'  => ['name' => __('Démarrer charge',        __FILE__), 'icon' => 'fas fa-charging-station'],
+            'stop_charge'   => ['name' => __('Arrêter charge',         __FILE__), 'icon' => 'fas fa-stop-circle'],
+        ];
 
         foreach ($actions as $logicalId => $def) {
             $cmd = $this->getCmd(null, $logicalId);
@@ -260,50 +303,53 @@ class hyundaikia extends eqLogic {
                 $cmd->setName($def['name']);
                 $cmd->setType('action');
                 $cmd->setSubType('other');
-                $cmd->setDisplay('icon', $def['icon']);
+                $cmd->setDisplay('icon', '<i class="' . $def['icon'] . '"></i>');
                 $cmd->save();
             }
         }
     }
-
-    public function preRemove() {
-        // Rien de spécial
-    }
 }
 
 
+// =========================================================
+//  Classe commande
+// =========================================================
+
 class hyundaikiaCmd extends cmd {
 
-    public function execute($options = array()) {
-        if ($this->getType() != 'action') return;
+    public function execute($_options = []) {
+        if ($this->getType() !== 'action') return;
 
         $logicalId = $this->getLogicalId();
         $eqLogic   = $this->getEqLogic();
         $vin       = $eqLogic->getLogicalId();
 
-        // Envoie la commande au démon
-        $payload = array(
-            'action' => $logicalId,
-            'vin'    => $vin,
-        );
+        $payload = ['action' => $logicalId, 'vin' => $vin];
 
-        // Options supplémentaires pour la climatisation
         if ($logicalId === 'start_climate') {
             $payload['temperature'] = config::byKey('default_climate_temp', 'hyundaikia', '22');
         }
 
-        $port    = config::byKey('socketport', 'hyundaikia', '55987');
-        $apiKey  = jeedom::getApiKey('hyundaikia');
-        $url     = 'http://127.0.0.1:' . $port;
+        $port   = config::byKey('socketport', 'hyundaikia', '55987');
+        $apiKey = jeedom::getApiKey('hyundaikia');
 
         try {
-            $http = new com_http($url);
-            $http->setPost(json_encode($payload));
-            $http->setHeader(array('Content-Type: application/json', 'Authorization: ' . $apiKey));
-            $result = $http->exec(5, 1);
-            log::add('hyundaikia', 'debug', 'Commande envoyée: ' . $logicalId . ' pour ' . $vin . ' → ' . $result);
+            $opts = [
+                'http' => [
+                    'method'  => 'POST',
+                    'header'  => "Content-Type: application/json\r\nAuthorization: " . $apiKey . "\r\n",
+                    'content' => json_encode($payload),
+                    'timeout' => 5,
+                ],
+            ];
+            $result = file_get_contents(
+                'http://127.0.0.1:' . $port,
+                false,
+                stream_context_create($opts)
+            );
+            log::add('hyundaikia', 'debug', 'Cmd ' . $logicalId . ' → ' . $result);
         } catch (Exception $e) {
-            log::add('hyundaikia', 'error', 'Impossible d\'envoyer la commande: ' . $e->getMessage());
+            log::add('hyundaikia', 'error', 'Envoi commande : ' . $e->getMessage());
         }
     }
 }
