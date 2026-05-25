@@ -7,7 +7,7 @@ if (!isConnect('admin')) {
     throw new Exception('{{401 - Accès non autorisé}}');
 }
 
-$pluginVersion = plugin::byId('hyundaikia')->getVersion();
+$pluginVersion = plugin::byId('hyundaikia')->getInfo('version');
 ?>
 
 <div class="row row-overflow">
