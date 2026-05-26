@@ -1,0 +1,14 @@
+{
+    "pre-install": {},
+    "apt": {
+        "python3-pip": {},
+        "python3-dev": {}
+    },
+    "pip3": {
+        "jeedomdaemon": {}
+    },
+    "npm": {},
+    "yarn": {},
+    "plugin": {},
+    "post-install": {}
+}
