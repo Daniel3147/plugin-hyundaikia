@@ -1,0 +1,15 @@
+{
+    "id"                        : "hyundaikia",
+    "name"                      : "Hyundai / Kia Connect",
+    "description"               : "Plugin pour piloter et surveiller les véhicules Hyundai (Bluelink) et Kia (UVO/Connect) via l'API officielle.",
+    "licence"                   : "GPL v3",
+    "author"                    : "",
+    "require"                   : "4.4.0",
+    "category"                  : "automatisation",
+    "changelog"                 : "",
+    "documentation"             : "",
+    "hasDependency"             : true,
+    "hasOwnDeamon"              : true,
+    "maxDependancyInstallTime"  : 10,
+    "issue"                     : ""
+}
