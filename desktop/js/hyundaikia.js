@@ -50,7 +50,7 @@ $(document).on('click', '#bt_scanVehicles', function () {
 
     $.ajax({
         type    : 'POST',
-        url     : 'core/ajax/hyundaikia.ajax.php',
+        url     : 'plugins/hyundaikia/core/ajax/hyundaikia.ajax.php',
         data    : { action: 'scanVehicles' },
         dataType: 'json',
         global  : false,
@@ -140,7 +140,7 @@ $(document).on('click', '#bt_importVehicles', function () {
         var v = toImport[done];
         $.ajax({
             type    : 'POST',
-            url     : 'core/ajax/hyundaikia.ajax.php',
+            url     : 'plugins/hyundaikia/core/ajax/hyundaikia.ajax.php',
             data    : { action: 'importVehicle', vin: v.vin, name: v.name, model: v.model, object_id: v.object_id },
             dataType: 'json',
             global  : false,

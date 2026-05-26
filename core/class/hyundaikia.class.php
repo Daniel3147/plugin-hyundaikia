@@ -262,14 +262,13 @@ class hyundaikia extends eqLogic {
         $vin     = $data['vin'];
         $eqLogic = eqLogic::byLogicalId($vin, 'hyundaikia');
         if (!is_object($eqLogic)) {
-            // Création automatique si inconnu
-            $eqLogic = new hyundaikia();
-            $eqLogic->setLogicalId($vin);
-            $eqLogic->setEqType_name('hyundaikia');
-            $eqLogic->setIsEnable(1);
-            $eqLogic->setIsVisible(1);
-            $eqLogic->setName(isset($data['name']) ? $data['name'] : $vin);
-            $eqLogic->save();
+            // L'équipement n'existe pas encore : il doit être créé via importVehicle()
+            // depuis l'interface (bouton "Rechercher les véhicules").
+            // On ne crée pas automatiquement pour éviter des équipements orphelins.
+            log::add('hyundaikia', 'debug',
+                'updateVehicle ignoré pour VIN=' . $vin . ' (pas encore importé)'
+            );
+            return;
         }
 
         foreach (self::getVehicleCommandsList() as $key => $def) {
