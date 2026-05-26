@@ -158,25 +158,20 @@ class hyundaikia extends eqLogic {
         $progressFile = $tmpDir . '/dep_progress';
         $logFile      = log::getPathToLog('hyundaikia_dep');
 
-        // Chemin absolu réel du script (résout les .. sans dépendre du cwd)
-        $script = realpath(dirname(__FILE__) . '/../../resources/post_install.sh');
+        // --break-system-packages est obligatoire sur Debian 12+ / Python 3.12+
+        // sans ce flag pip3 refuse d'installer hors d'un venv (PEP 668)
+        $pip = 'pip3 install --upgrade --break-system-packages'
+             . ' \"hyundai_kia_connect_api>=4.14.1\" jeedomdaemon';
 
-        if (!$script || !file_exists($script)) {
-            // Fallback : pip3 direct si le script est introuvable
-            // --break-system-packages requis sur Debian 12+ / Python 3.12+
-            log::add('hyundaikia', 'warning', 'post_install.sh introuvable, pip3 direct utilisé');
-            $cmd  = 'sudo pip3 install --upgrade --break-system-packages "hyundai_kia_connect_api>=4.14.1" jeedomdaemon';
-            $cmd .= ' >> ' . escapeshellarg($logFile) . ' 2>&1 & echo $! > ' . escapeshellarg($progressFile);
-            exec($cmd);
-        } else {
-            // S'assure que le script est exécutable
-            chmod($script, 0755);
-            $cmd  = 'sudo bash ' . escapeshellarg($script);
-            $cmd .= ' >> ' . escapeshellarg($logFile) . ' 2>&1 & echo $! > ' . escapeshellarg($progressFile);
-            exec($cmd);
-        }
+        // nohup + bash -c : le process survit après la requête HTTP Jeedom
+        $inner = $pip . ' >> ' . $logFile . ' 2>&1 ; echo \"[OK] Installation terminee\" >> ' . $logFile;
+        $cmd   = 'nohup bash -c ' . escapeshellarg($inner)
+               . ' > /dev/null 2>&1 & echo $! > ' . escapeshellarg($progressFile);
 
-        return ['script' => '', 'log' => $logFile];
+        log::add('hyundaikia', 'info', 'Installation dependances : ' . $pip);
+        exec($cmd);
+
+        return array('script' => '', 'log' => $logFile);
     }
 
     // =========================================================
