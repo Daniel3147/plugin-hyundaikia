@@ -245,5 +245,8 @@ var hyundaikiaConfig = {
     </div>
 </div>
 
+<script>
+    var eqType='hyundaikia';
+</script>
 <?php include_file('core', 'plugin.template', 'js'); ?>
 <?php include_file('desktop', 'hyundaikia', 'js', 'hyundaikia'); ?>
