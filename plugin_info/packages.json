@@ -1,0 +1,15 @@
+{
+    "pre-install": {},
+    "apt": {
+        "python3-pip": {},
+        "python3-dev": {}
+    },
+    "pip3": {
+        "jeedomdaemon": {},
+        "hyundai_kia_connect_api": {"reinstall": true}
+    },
+    "npm": {},
+    "yarn": {},
+    "plugin": {},
+    "post-install": {}
+}
