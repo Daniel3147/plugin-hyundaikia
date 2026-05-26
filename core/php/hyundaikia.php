@@ -2,54 +2,49 @@
 /**
  * Callback HTTP appelé par le démon Python (jeedomdaemon).
  *
- * Protocole jeedomdaemon :
- *   POST  <callback_url>?apikey=<apikey>
- *   Body  : JSON  { "action": "...", ... }
+ * jeedomdaemon envoie :
+ *   POST <callback_url>?apikey=<apikey>
+ *   Content-Type: application/json
+ *   Body: { ... }
  *
- * L'apikey est donc dans $_GET['apikey'], PAS dans un header.
+ * L'apikey est UNIQUEMENT dans $_GET['apikey'].
+ * jeedomdaemon la construit lui-même : url + '?apikey=' + apikey
+ * → ne jamais mettre ?apikey= dans l'URL callback côté PHP/PHP.
  */
 
 require_once dirname(__FILE__) . '/../../../../core/php/core.inc.php';
 
-// ── Vérification de la clé API ────────────────────────────────────────────────
-// jeedomdaemon ajoute ?apikey=xxx à l'URL callback
-$receivedKey = isset($_GET['apikey']) ? $_GET['apikey'] : '';
+// Lecture de la clé reçue — uniquement depuis $_GET (protocole jeedomdaemon)
+$receivedKey = isset($_GET['apikey']) ? trim($_GET['apikey']) : '';
 
-// Fallback sur les headers au cas où
-if ($receivedKey === '') {
-    foreach (['HTTP_AUTHORIZATION', 'HTTP_X_API_KEY'] as $h) {
-        if (!empty($_SERVER[$h])) {
-            $receivedKey = $_SERVER[$h];
-            break;
-        }
-    }
-}
+// Clé attendue
+$expectedKey = trim(jeedom::getApiKey('hyundaikia'));
 
-if ($receivedKey !== jeedom::getApiKey('hyundaikia')) {
-    log::add('hyundaikia', 'warning', 'Callback : clé API invalide');
+if ($receivedKey === '' || $receivedKey !== $expectedKey) {
+    log::add('hyundaikia', 'warning',
+        'Callback : clé API invalide'
+        . ' – reçue=[' . substr($receivedKey, 0, 8) . '...]'
+        . ' – attendue=[' . substr($expectedKey, 0, 8) . '...]'
+    );
     http_response_code(403);
     die(json_encode(['state' => 'error', 'result' => 'Forbidden']));
 }
 
-// ── Lecture du body JSON ──────────────────────────────────────────────────────
-$raw = file_get_contents('php://input');
+header('Content-Type: application/json');
 
-if (empty($raw)) {
-    // jeedomdaemon peut aussi faire un GET simple pour vérifier que le
-    // callback répond (heartbeat). On répond OK dans ce cas.
-    header('Content-Type: application/json');
+// Corps vide = heartbeat de jeedomdaemon → on répond OK
+$raw = file_get_contents('php://input');
+if (empty(trim($raw))) {
     echo json_encode(['state' => 'ok']);
     die();
 }
 
 $data = json_decode($raw, true);
 if (!is_array($data)) {
-    log::add('hyundaikia', 'error', 'Callback : JSON invalide reçu : ' . substr($raw, 0, 200));
+    log::add('hyundaikia', 'error', 'Callback : JSON invalide : ' . substr($raw, 0, 200));
     http_response_code(400);
     die(json_encode(['state' => 'error', 'result' => 'Invalid JSON']));
 }
-
-header('Content-Type: application/json');
 
 $action = isset($data['action']) ? $data['action'] : '';
 log::add('hyundaikia', 'debug', 'Callback reçu : action=' . $action);
@@ -73,8 +68,7 @@ switch ($action) {
         break;
 
     default:
-        // Action inconnue mais on répond toujours 200 pour ne pas bloquer le démon
-        log::add('hyundaikia', 'debug', 'Callback : action non gérée : ' . $action . ' – ' . substr($raw, 0, 200));
+        log::add('hyundaikia', 'debug', 'Callback : action non gérée : ' . $action);
         echo json_encode(['state' => 'ok']);
         break;
 }

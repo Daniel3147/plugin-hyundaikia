@@ -62,11 +62,10 @@ class hyundaikia extends eqLogic {
         $params  = ' --socketport '  . escapeshellarg(config::byKey('socketport', 'hyundaikia', '55987'));
         $params .= ' --sockethost '  . escapeshellarg('127.0.0.1');
         $params .= ' --apikey '      . escapeshellarg(jeedom::getApiKey('hyundaikia'));
-        // L'apikey DOIT être dans l'URL callback en query string
-        // car c'est ainsi que jeedomdaemon la transmet à chaque requête POST
+        // NE PAS mettre ?apikey= ici : jeedomdaemon l'ajoute lui-même automatiquement.
+        // Si on l'ajoute en double, l'URL devient ?apikey=xxx?apikey=xxx → 403.
         $callbackUrl = network::getNetworkAccess('internal')
-            . '/plugins/hyundaikia/core/php/hyundaikia.php'
-            . '?apikey=' . jeedom::getApiKey('hyundaikia');
+            . '/plugins/hyundaikia/core/php/hyundaikia.php';
         $params .= ' --callback ' . escapeshellarg($callbackUrl);
         $params .= ' --cycle '       . escapeshellarg(config::byKey('cycle', 'hyundaikia', '30'));
         $params .= ' --loglevel '    . escapeshellarg(log::convertLogLevel(log::getLogLevel('hyundaikia')));
