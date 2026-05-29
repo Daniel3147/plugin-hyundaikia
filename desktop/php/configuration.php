@@ -2,135 +2,164 @@
 if (!isConnect('admin')) {
     throw new Exception(__('401 - Accès non autorisé', __FILE__));
 }
+
+// Lecture des valeurs sauvegardées (Jeedom v4 : config::byKey)
+$brand             = config::byKey('brand',             'hyundaikia', 'HY');
+$region            = config::byKey('region',            'hyundaikia', 'EU');
+$username          = config::byKey('username',          'hyundaikia', '');
+$password          = config::byKey('password',          'hyundaikia', '');
+$pin               = config::byKey('pin',               'hyundaikia', '');
+$refresh_frequency = config::byKey('refresh_frequency', 'hyundaikia', 30);
+$use_cache         = config::byKey('use_cache',         'hyundaikia', 1);
+
+// Helper : sélectionne l'option courante
+function opt($val, $current) {
+    return $val === $current ? ' selected="selected"' : '';
+}
 ?>
 
-<form class="form-horizontal">
+<form class="form-horizontal" id="hyundaikia-config-form">
     <fieldset>
 
-        <!-- Section Marque et Région -->
+        <!-- ── Compte ──────────────────────────────────────────────────── -->
         <div class="form-group">
-            <legend><i class="fas fa-car"></i> <?php echo __('Configuration du compte', __FILE__); ?></legend>
+            <legend><i class="fas fa-car"></i>&nbsp;<?php echo __('Configuration du compte', __FILE__); ?></legend>
         </div>
 
         <div class="form-group">
-            <label class="col-lg-4 control-label"><?php echo __('Marque', __FILE__); ?></label>
-            <div class="col-lg-4">
-                <select id="brand" class="configKey form-control" data-l1key="brand">
-                    <option value="HY"><?php echo __('Hyundai', __FILE__); ?></option>
-                    <option value="KI"><?php echo __('Kia', __FILE__); ?></option>
-                    <option value="GE"><?php echo __('Genesis', __FILE__); ?></option>
+            <label class="col-sm-3 col-lg-2 control-label"><?php echo __('Marque', __FILE__); ?></label>
+            <div class="col-sm-4 col-lg-3">
+                <select id="hk_brand" class="form-control">
+                    <option value="HY"<?php echo opt('HY',$brand); ?>><?php echo __('Hyundai', __FILE__); ?></option>
+                    <option value="KI"<?php echo opt('KI',$brand); ?>><?php echo __('Kia', __FILE__); ?></option>
+                    <option value="GE"<?php echo opt('GE',$brand); ?>><?php echo __('Genesis', __FILE__); ?></option>
                 </select>
             </div>
         </div>
 
         <div class="form-group">
-            <label class="col-lg-4 control-label"><?php echo __('Région', __FILE__); ?></label>
-            <div class="col-lg-4">
-                <select id="region" class="configKey form-control" data-l1key="region">
-                    <option value="EU"><?php echo __('Europe', __FILE__); ?></option>
-                    <option value="US"><?php echo __('États-Unis', __FILE__); ?></option>
-                    <option value="CA"><?php echo __('Canada', __FILE__); ?></option>
-                    <option value="CN"><?php echo __('Chine', __FILE__); ?></option>
-                    <option value="AU"><?php echo __('Australie', __FILE__); ?></option>
-                    <option value="IN"><?php echo __('Inde', __FILE__); ?></option>
+            <label class="col-sm-3 col-lg-2 control-label"><?php echo __('Région', __FILE__); ?></label>
+            <div class="col-sm-4 col-lg-3">
+                <select id="hk_region" class="form-control">
+                    <option value="EU"<?php echo opt('EU',$region); ?>><?php echo __('Europe', __FILE__); ?></option>
+                    <option value="US"<?php echo opt('US',$region); ?>><?php echo __('États-Unis', __FILE__); ?></option>
+                    <option value="CA"<?php echo opt('CA',$region); ?>><?php echo __('Canada', __FILE__); ?></option>
+                    <option value="CN"<?php echo opt('CN',$region); ?>><?php echo __('Chine', __FILE__); ?></option>
+                    <option value="AU"<?php echo opt('AU',$region); ?>><?php echo __('Australie', __FILE__); ?></option>
+                    <option value="IN"<?php echo opt('IN',$region); ?>><?php echo __('Inde', __FILE__); ?></option>
                 </select>
             </div>
         </div>
 
-        <!-- Identifiants -->
         <div class="form-group">
-            <label class="col-lg-4 control-label"><?php echo __('Identifiant (email)', __FILE__); ?></label>
-            <div class="col-lg-4">
-                <input type="email" class="configKey form-control" data-l1key="username"
-                    placeholder="votre@email.com" autocomplete="off"/>
+            <label class="col-sm-3 col-lg-2 control-label"><?php echo __('Identifiant (email)', __FILE__); ?></label>
+            <div class="col-sm-5 col-lg-4">
+                <input type="email" id="hk_username" class="form-control"
+                       value="<?php echo htmlspecialchars($username); ?>"
+                       placeholder="votre@email.com" autocomplete="off"/>
             </div>
         </div>
 
         <div class="form-group">
-            <label class="col-lg-4 control-label"><?php echo __('Mot de passe', __FILE__); ?></label>
-            <div class="col-lg-4">
-                <input type="password" class="configKey form-control" data-l1key="password"
-                    placeholder="••••••••" autocomplete="new-password"/>
+            <label class="col-sm-3 col-lg-2 control-label"><?php echo __('Mot de passe', __FILE__); ?></label>
+            <div class="col-sm-5 col-lg-4">
+                <input type="password" id="hk_password" class="form-control"
+                       value="<?php echo htmlspecialchars($password); ?>"
+                       placeholder="••••••••" autocomplete="new-password"/>
             </div>
         </div>
 
         <div class="form-group">
-            <label class="col-lg-4 control-label"><?php echo __('Code PIN', __FILE__); ?>
-                <sup><i class="fas fa-info-circle" title="<?php echo __('Code PIN de l\'application Bluelink/UVO', __FILE__); ?>"></i></sup>
+            <label class="col-sm-3 col-lg-2 control-label">
+                <?php echo __('Code PIN', __FILE__); ?>
+                <sup><i class="fas fa-info-circle"
+                    title="<?php echo __('Code PIN de l\'application Bluelink / UVO Connect (4 à 6 chiffres)', __FILE__); ?>">
+                </i></sup>
             </label>
-            <div class="col-lg-2">
-                <input type="password" class="configKey form-control" data-l1key="pin"
-                    placeholder="1234" maxlength="6" autocomplete="new-password"/>
+            <div class="col-sm-2 col-lg-2">
+                <input type="password" id="hk_pin" class="form-control"
+                       value="<?php echo htmlspecialchars($pin); ?>"
+                       placeholder="1234" maxlength="6" autocomplete="new-password"/>
             </div>
         </div>
 
-        <!-- Test connexion -->
+        <!-- ── Boutons Sauvegarder / Tester ───────────────────────────── -->
         <div class="form-group">
-            <label class="col-lg-4 control-label"></label>
-            <div class="col-lg-8">
+            <label class="col-sm-3 col-lg-2 control-label"></label>
+            <div class="col-sm-9 col-lg-8">
+                <button type="button" class="btn btn-success" id="bt_saveConfig">
+                    <i class="fas fa-save"></i>&nbsp;<?php echo __('Sauvegarder', __FILE__); ?>
+                </button>
+                &nbsp;
                 <button type="button" class="btn btn-info" id="bt_testConnection">
-                    <i class="fas fa-plug"></i> <?php echo __('Tester la connexion', __FILE__); ?>
+                    <i class="fas fa-plug"></i>&nbsp;<?php echo __('Tester la connexion', __FILE__); ?>
                 </button>
-                <span id="testConnectionResult" style="margin-left:10px;"></span>
+                &nbsp;
+                <span id="testConnectionResult"></span>
             </div>
         </div>
 
-        <!-- Séparateur -->
+        <!-- ── Rafraîchissement ────────────────────────────────────────── -->
         <div class="form-group">
-            <legend><i class="fas fa-sync-alt"></i> <?php echo __('Actualisation automatique', __FILE__); ?></legend>
+            <legend><i class="fas fa-sync-alt"></i>&nbsp;<?php echo __('Actualisation automatique', __FILE__); ?></legend>
         </div>
 
         <div class="form-group">
-            <label class="col-lg-4 control-label"><?php echo __('Fréquence de rafraîchissement (minutes)', __FILE__); ?></label>
-            <div class="col-lg-2">
-                <input type="number" class="configKey form-control" data-l1key="refresh_frequency"
-                    value="30" min="5" max="1440"/>
+            <label class="col-sm-3 col-lg-2 control-label">
+                <?php echo __('Fréquence (minutes)', __FILE__); ?>
+            </label>
+            <div class="col-sm-2 col-lg-1">
+                <input type="number" id="hk_refresh_frequency" class="form-control"
+                       value="<?php echo intval($refresh_frequency); ?>"
+                       min="5" max="1440"/>
             </div>
-            <div class="col-lg-5">
-                <span class="help-block">
+            <div class="col-sm-7 col-lg-6">
+                <p class="help-block">
                     <i class="fas fa-exclamation-triangle text-warning"></i>
-                    <?php echo __('Attention: des rafraîchissements trop fréquents peuvent entraîner des limitations de l\'API ou décharger la batterie 12V du véhicule.', __FILE__); ?>
-                </span>
+                    <?php echo __('Des rafraîchissements trop fréquents peuvent déclencher des limitations API ou décharger la batterie 12V.', __FILE__); ?>
+                </p>
             </div>
         </div>
 
         <div class="form-group">
-            <label class="col-lg-4 control-label"><?php echo __('Utiliser le cache (recommandé)', __FILE__); ?></label>
-            <div class="col-lg-2">
-                <input type="checkbox" class="configKey" data-l1key="use_cache" checked/>
+            <label class="col-sm-3 col-lg-2 control-label">
+                <?php echo __('Utiliser le cache (recommandé)', __FILE__); ?>
+            </label>
+            <div class="col-sm-1">
+                <input type="checkbox" id="hk_use_cache"<?php echo $use_cache ? ' checked' : ''; ?>/>
             </div>
-            <div class="col-lg-5">
-                <span class="help-block">
-                    <?php echo __('Si activé, utilise les données en cache du serveur Hyundai/Kia. Désactiver pour forcer la lecture depuis le véhicule (plus lent, consomme plus d\'énergie).', __FILE__); ?>
-                </span>
+            <div class="col-sm-7 col-lg-6">
+                <p class="help-block">
+                    <?php echo __('Utilise les données en cache Hyundai/Kia. Désactiver uniquement pour forcer le réveil du véhicule (plus lent, plus consommateur).', __FILE__); ?>
+                </p>
             </div>
         </div>
 
-        <!-- Recherche véhicules -->
+        <!-- ── Découverte véhicules ────────────────────────────────────── -->
         <div class="form-group">
-            <legend><i class="fas fa-search"></i> <?php echo __('Découverte des véhicules', __FILE__); ?></legend>
+            <legend><i class="fas fa-search"></i>&nbsp;<?php echo __('Découverte des véhicules', __FILE__); ?></legend>
         </div>
 
         <div class="form-group">
-            <label class="col-lg-4 control-label"></label>
-            <div class="col-lg-8">
-                <button type="button" class="btn btn-success" id="bt_searchVehicles">
-                    <i class="fas fa-search"></i> <?php echo __('Rechercher mes véhicules', __FILE__); ?>
+            <label class="col-sm-3 col-lg-2 control-label"></label>
+            <div class="col-sm-9">
+                <button type="button" class="btn btn-primary" id="bt_searchVehicles">
+                    <i class="fas fa-search"></i>&nbsp;<?php echo __('Rechercher mes véhicules', __FILE__); ?>
                 </button>
-                <span class="help-block">
-                    <?php echo __('Sauvegardez d\'abord vos identifiants, puis cliquez pour découvrir vos véhicules.', __FILE__); ?>
-                </span>
+                <p class="help-block">
+                    <?php echo __('Sauvegardez d\'abord vos identifiants, puis lancez la recherche.', __FILE__); ?>
+                </p>
             </div>
         </div>
 
-        <!-- Liste des véhicules trouvés -->
-        <div id="vehiclesList" style="display:none;">
+        <!-- Résultats véhicules -->
+        <div id="div_vehiclesList" style="display:none;">
             <div class="form-group">
                 <legend><?php echo __('Véhicules trouvés', __FILE__); ?></legend>
             </div>
             <div class="form-group">
-                <div class="col-lg-12">
-                    <div id="vehiclesTable"></div>
+                <div class="col-sm-12">
+                    <div id="div_vehiclesTable"></div>
                 </div>
             </div>
         </div>
@@ -139,133 +168,136 @@ if (!isConnect('admin')) {
 </form>
 
 <script>
-    /* ========= TEST CONNEXION ========= */
-    $('#bt_testConnection').on('click', function () {
-        var $btn = $(this);
-        var $result = $('#testConnectionResult');
-        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
-        $result.html('');
+/* ── Sauvegarde config (Jeedom v4 : jeedom.config.save) ──────────────────── */
+$('#bt_saveConfig').on('click', function () {
+    var $btn = $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
 
-        $.ajax({
-            type: 'POST',
-            url: 'plugins/hyundaikia/core/ajax/hyundaikia.ajax.php',
-            data: {
-                action: 'testConnection'
-            },
-            dataType: 'json',
-            error: function (request, status, error) {
-                $result.html('<span class="text-danger"><i class="fas fa-times-circle"></i> ' + error + '</span>');
-                $btn.prop('disabled', false).html('<i class="fas fa-plug"></i> <?php echo __('Tester la connexion', __FILE__); ?>');
-            },
-            success: function (data) {
-                if (data.state != 'ok') {
-                    $result.html('<span class="text-danger"><i class="fas fa-times-circle"></i> ' + data.result + '</span>');
-                } else {
-                    $result.html('<span class="text-success"><i class="fas fa-check-circle"></i> ' + data.result.message + '</span>');
-                }
-                $btn.prop('disabled', false).html('<i class="fas fa-plug"></i> <?php echo __('Tester la connexion', __FILE__); ?>');
-            }
-        });
+    jeedom.config.save({
+        plugin: 'hyundaikia',
+        configuration: {
+            brand:             $('#hk_brand').val(),
+            region:            $('#hk_region').val(),
+            username:          $('#hk_username').val(),
+            password:          $('#hk_password').val(),
+            pin:               $('#hk_pin').val(),
+            refresh_frequency: $('#hk_refresh_frequency').val(),
+            use_cache:         $('#hk_use_cache').is(':checked') ? 1 : 0
+        },
+        error: function (err) {
+            $.fn.showAlert({ message: err.message, level: 'danger' });
+            $btn.prop('disabled', false).html('<i class="fas fa-save"></i>&nbsp;<?php echo __('Sauvegarder', __FILE__); ?>');
+        },
+        success: function () {
+            $.fn.showAlert({ message: '<?php echo __('Configuration sauvegardée.', __FILE__); ?>', level: 'success' });
+            $btn.prop('disabled', false).html('<i class="fas fa-save"></i>&nbsp;<?php echo __('Sauvegarder', __FILE__); ?>');
+        }
     });
+});
 
-    /* ========= RECHERCHE VEHICULES ========= */
-    $('#bt_searchVehicles').on('click', function () {
-        var $btn = $(this);
-        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> <?php echo __('Recherche en cours...', __FILE__); ?>');
-        $('#vehiclesList').hide();
+/* ── Test connexion ──────────────────────────────────────────────────────── */
+$('#bt_testConnection').on('click', function () {
+    var $btn = $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+    var $res = $('#testConnectionResult').html('');
 
-        $.ajax({
-            type: 'POST',
-            url: 'plugins/hyundaikia/core/ajax/hyundaikia.ajax.php',
-            data: {
-                action: 'getVehicles'
-            },
-            dataType: 'json',
-            error: function (request, status, error) {
-                $('#vehiclesTable').html('<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> ' + error + '</div>');
-                $('#vehiclesList').show();
-                $btn.prop('disabled', false).html('<i class="fas fa-search"></i> <?php echo __('Rechercher mes véhicules', __FILE__); ?>');
-            },
-            success: function (data) {
-                if (data.state != 'ok') {
-                    $('#vehiclesTable').html('<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> ' + data.result + '</div>');
-                    $('#vehiclesList').show();
-                } else {
-                    var vehicles = data.result;
-                    if (!vehicles || vehicles.length === 0) {
-                        $('#vehiclesTable').html('<div class="alert alert-warning"><?php echo __('Aucun véhicule trouvé.', __FILE__); ?></div>');
-                    } else {
-                        var html = '<table class="table table-bordered table-hover">';
-                        html += '<thead><tr>';
-                        html += '<th><?php echo __('Nom', __FILE__); ?></th>';
-                        html += '<th><?php echo __('Modèle', __FILE__); ?></th>';
-                        html += '<th><?php echo __('Année', __FILE__); ?></th>';
-                        html += '<th><?php echo __('VIN', __FILE__); ?></th>';
-                        html += '<th><?php echo __('Type', __FILE__); ?></th>';
-                        html += '<th><?php echo __('Action', __FILE__); ?></th>';
-                        html += '</tr></thead><tbody>';
-
-                        $.each(vehicles, function (i, v) {
-                            var type = v.is_ev ? '<span class="label label-success">EV</span>' :
-                                       (v.is_phev ? '<span class="label label-info">PHEV</span>' :
-                                       '<span class="label label-default">Thermique</span>');
-                            html += '<tr>';
-                            html += '<td><i class="fas fa-car"></i> ' + (v.name || '-') + '</td>';
-                            html += '<td>' + (v.model || '-') + '</td>';
-                            html += '<td>' + (v.year || '-') + '</td>';
-                            html += '<td><small>' + (v.vin || '-') + '</small></td>';
-                            html += '<td>' + type + '</td>';
-                            html += '<td><button class="btn btn-primary btn-sm bt_importVehicle" data-vehicle-id="' + v.id + '">';
-                            html += '<i class="fas fa-download"></i> <?php echo __('Importer', __FILE__); ?></button></td>';
-                            html += '</tr>';
-                        });
-
-                        html += '</tbody></table>';
-                        $('#vehiclesTable').html(html);
-                    }
-                    $('#vehiclesList').show();
-                }
-                $btn.prop('disabled', false).html('<i class="fas fa-search"></i> <?php echo __('Rechercher mes véhicules', __FILE__); ?>');
+    $.ajax({
+        type: 'POST',
+        url:  'plugins/hyundaikia/core/ajax/hyundaikia.ajax.php',
+        data: { action: 'testConnection' },
+        dataType: 'json',
+        error: function (xhr, status, error) {
+            $res.html('<span class="text-danger"><i class="fas fa-times-circle"></i> ' + error + '</span>');
+            $btn.prop('disabled', false).html('<i class="fas fa-plug"></i>&nbsp;<?php echo __('Tester la connexion', __FILE__); ?>');
+        },
+        success: function (data) {
+            if (data.state !== 'ok') {
+                $res.html('<span class="text-danger"><i class="fas fa-times-circle"></i> ' + data.result + '</span>');
+            } else {
+                $res.html('<span class="text-success"><i class="fas fa-check-circle"></i> ' + data.result.message + '</span>');
             }
-        });
+            $btn.prop('disabled', false).html('<i class="fas fa-plug"></i>&nbsp;<?php echo __('Tester la connexion', __FILE__); ?>');
+        }
     });
+});
 
-    /* ========= IMPORT VEHICULE ========= */
-    $(document).on('click', '.bt_importVehicle', function () {
-        var $btn = $(this);
-        var vehicleId = $btn.data('vehicle-id');
-        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+/* ── Recherche véhicules ─────────────────────────────────────────────────── */
+$('#bt_searchVehicles').on('click', function () {
+    var $btn = $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>&nbsp;<?php echo __('Recherche...', __FILE__); ?>');
+    $('#div_vehiclesList').hide();
 
-        $.ajax({
-            type: 'POST',
-            url: 'plugins/hyundaikia/core/ajax/hyundaikia.ajax.php',
-            data: {
-                action: 'importVehicle',
-                vehicle_id: vehicleId
-            },
-            dataType: 'json',
-            error: function (request, status, error) {
-                $btn.prop('disabled', false).html('<i class="fas fa-download"></i> <?php echo __('Importer', __FILE__); ?>');
-                $.fn.showAlert({
-                    message: error,
-                    level: 'danger'
-                });
-            },
-            success: function (data) {
-                if (data.state != 'ok') {
-                    $.fn.showAlert({
-                        message: data.result,
-                        level: 'danger'
+    $.ajax({
+        type: 'POST',
+        url:  'plugins/hyundaikia/core/ajax/hyundaikia.ajax.php',
+        data: { action: 'getVehicles' },
+        dataType: 'json',
+        error: function (xhr, status, error) {
+            $('#div_vehiclesTable').html('<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> ' + error + '</div>');
+            $('#div_vehiclesList').show();
+            $btn.prop('disabled', false).html('<i class="fas fa-search"></i>&nbsp;<?php echo __('Rechercher mes véhicules', __FILE__); ?>');
+        },
+        success: function (data) {
+            if (data.state !== 'ok') {
+                $('#div_vehiclesTable').html('<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> ' + data.result + '</div>');
+            } else {
+                var vehicles = data.result;
+                if (!vehicles || vehicles.length === 0) {
+                    $('#div_vehiclesTable').html('<div class="alert alert-warning"><?php echo __('Aucun véhicule trouvé.', __FILE__); ?></div>');
+                } else {
+                    var html = '<table class="table table-bordered table-hover"><thead><tr>'
+                        + '<th><?php echo __('Nom', __FILE__); ?></th>'
+                        + '<th><?php echo __('Modèle', __FILE__); ?></th>'
+                        + '<th><?php echo __('Année', __FILE__); ?></th>'
+                        + '<th><?php echo __('VIN', __FILE__); ?></th>'
+                        + '<th><?php echo __('Type', __FILE__); ?></th>'
+                        + '<th><?php echo __('Action', __FILE__); ?></th>'
+                        + '</tr></thead><tbody>';
+
+                    $.each(vehicles, function (i, v) {
+                        var badge = v.is_ev   ? '<span class="label label-success">EV</span>'
+                                  : v.is_phev ? '<span class="label label-info">PHEV</span>'
+                                  :             '<span class="label label-default">Thermique</span>';
+                        html += '<tr>'
+                            + '<td><i class="fas fa-car"></i> ' + (v.name  || '-') + '</td>'
+                            + '<td>' + (v.model || '-') + '</td>'
+                            + '<td>' + (v.year  || '-') + '</td>'
+                            + '<td><small>' + (v.vin || '-') + '</small></td>'
+                            + '<td>' + badge + '</td>'
+                            + '<td><button class="btn btn-primary btn-sm bt_importVehicle" data-vehicle-id="' + v.id + '">'
+                            + '<i class="fas fa-download"></i>&nbsp;<?php echo __('Importer', __FILE__); ?></button></td>'
+                            + '</tr>';
                     });
-                    $btn.prop('disabled', false).html('<i class="fas fa-download"></i> <?php echo __('Importer', __FILE__); ?>');
-                } else {
-                    $btn.html('<i class="fas fa-check text-success"></i> <?php echo __('Importé', __FILE__); ?>');
-                    $.fn.showAlert({
-                        message: '<?php echo __('Véhicule importé avec succès !', __FILE__); ?>',
-                        level: 'success'
-                    });
+                    html += '</tbody></table>';
+                    $('#div_vehiclesTable').html(html);
                 }
             }
-        });
+            $('#div_vehiclesList').show();
+            $btn.prop('disabled', false).html('<i class="fas fa-search"></i>&nbsp;<?php echo __('Rechercher mes véhicules', __FILE__); ?>');
+        }
     });
+});
+
+/* ── Import véhicule ─────────────────────────────────────────────────────── */
+$(document).on('click', '.bt_importVehicle', function () {
+    var $btn      = $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+    var vehicleId = $btn.data('vehicle-id');
+
+    $.ajax({
+        type: 'POST',
+        url:  'plugins/hyundaikia/core/ajax/hyundaikia.ajax.php',
+        data: { action: 'importVehicle', vehicle_id: vehicleId },
+        dataType: 'json',
+        error: function (xhr, status, error) {
+            $.fn.showAlert({ message: error, level: 'danger' });
+            $btn.prop('disabled', false).html('<i class="fas fa-download"></i>&nbsp;<?php echo __('Importer', __FILE__); ?>');
+        },
+        success: function (data) {
+            if (data.state !== 'ok') {
+                $.fn.showAlert({ message: data.result, level: 'danger' });
+                $btn.prop('disabled', false).html('<i class="fas fa-download"></i>&nbsp;<?php echo __('Importer', __FILE__); ?>');
+            } else {
+                $btn.html('<i class="fas fa-check text-success"></i>&nbsp;<?php echo __('Importé', __FILE__); ?>');
+                $.fn.showAlert({ message: '<?php echo __('Véhicule importé avec succès !', __FILE__); ?>', level: 'success' });
+            }
+        }
+    });
+});
 </script>
