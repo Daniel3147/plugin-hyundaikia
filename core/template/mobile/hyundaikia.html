@@ -1,0 +1,63 @@
+<div class="cmd-widget hyundaikia-widget hyundaikia-mobile" data-eqlogic_id="#eqLogic_id#">
+    <div class="hyundaikia-header">
+        <img src="plugins/hyundaikia/plugin_info/hyundaikia_icon.png" height="32" alt="logo" style="margin-right:8px;"/>
+        <div class="hyundaikia-title">
+            <span class="hyundaikia-name">#vehicle_name#</span>
+            <small class="hyundaikia-model">#vehicle_model#</small>
+        </div>
+        <a class="cmd-widget action" data-cmd_id="#refresh_id#" style="margin-left:auto;color:#9fb3c8;font-size:16px;">
+            <i class="fas fa-sync-alt"></i>
+        </a>
+    </div>
+    <div class="hyundaikia-body">
+        <!-- Batterie ou carburant -->
+        <?php if ($is_ev): ?>
+        <div class="hyundaikia-battery-container">
+            <div class="hyundaikia-battery-bar">
+                <div class="hyundaikia-battery-fill" style="width:#ev_battery_level#%;"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#c0d0e0;margin-top:3px;">
+                <span><i class="fas fa-bolt"></i> <span class="cmd" data-cmd_id="#ev_battery_level_id#">#ev_battery_level#</span>%</span>
+                <span><i class="fas fa-road"></i> <span class="cmd" data-cmd_id="#ev_driving_range_id#">#ev_driving_range#</span> km</span>
+            </div>
+        </div>
+        <?php else: ?>
+        <div class="hyundaikia-battery-container">
+            <div class="hyundaikia-battery-bar">
+                <div class="hyundaikia-battery-fill hyundaikia-fuel-fill" style="width:#fuel_level#%;"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#c0d0e0;margin-top:3px;">
+                <span><i class="fas fa-gas-pump"></i> <span class="cmd" data-cmd_id="#fuel_level_id#">#fuel_level#</span>%</span>
+                <span><i class="fas fa-road"></i> <span class="cmd" data-cmd_id="#fuel_driving_range_id#">#fuel_driving_range#</span> km</span>
+            </div>
+        </div>
+        <?php endif; ?>
+        <!-- Statut -->
+        <div style="display:flex;justify-content:space-around;margin:8px 0;font-size:13px;">
+            <span class="cmd" data-cmd_id="#is_locked_id#">
+                <?php if ($is_locked): ?><i class="fas fa-lock" style="color:#2ecc71;"></i><?php else: ?><i class="fas fa-lock-open" style="color:#e74c3c;"></i><?php endif; ?>
+            </span>
+            <span class="cmd" data-cmd_id="#engine_id#">
+                <?php if ($engine): ?><i class="fas fa-car-side" style="color:#2ecc71;"></i><?php else: ?><i class="fas fa-car-side" style="color:#7f8c8d;"></i><?php endif; ?>
+            </span>
+            <span class="cmd" data-cmd_id="#air_conditioning_id#">
+                <?php if ($air_conditioning): ?><i class="fas fa-snowflake" style="color:#3498db;"></i><?php else: ?><i class="fas fa-snowflake" style="color:#7f8c8d;"></i><?php endif; ?>
+            </span>
+        </div>
+        <!-- Actions principales -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:6px;">
+            <a class="btn btn-xs btn-default cmd-widget action" data-cmd_id="#lock_id#" style="text-align:center;padding:5px;border-radius:5px;">
+                <i class="fas fa-lock"></i> Verrou
+            </a>
+            <a class="btn btn-xs btn-default cmd-widget action" data-cmd_id="#unlock_id#" style="text-align:center;padding:5px;border-radius:5px;">
+                <i class="fas fa-lock-open"></i> Ouvrir
+            </a>
+            <a class="btn btn-xs btn-default cmd-widget action" data-cmd_id="#start_climate_id#" style="text-align:center;padding:5px;border-radius:5px;">
+                <i class="fas fa-temperature-high"></i> Clim
+            </a>
+            <a class="btn btn-xs btn-default cmd-widget action" data-cmd_id="#stop_climate_id#" style="text-align:center;padding:5px;border-radius:5px;">
+                <i class="fas fa-temperature-low"></i> Stop
+            </a>
+        </div>
+    </div>
+</div>
