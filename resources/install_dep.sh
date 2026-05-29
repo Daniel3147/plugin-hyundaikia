@@ -82,7 +82,7 @@ fi
 # ── 6. Vérification finale ─────────────────────────────────────────────────────
 LOG "Vérification de l'import..."
 "$VENV_DIR/bin/python3" -c "
-from hyundai_kia_connect_api import VehicleManager, Brand, Region
+from hyundai_kia_connect_api import VehicleManager
 print('hyundai_kia_connect_api : OK')
 import hyundai_kia_connect_api
 print('Version :', getattr(hyundai_kia_connect_api, '__version__', 'inconnue'))
